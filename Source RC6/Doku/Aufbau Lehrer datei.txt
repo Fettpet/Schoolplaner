@@ -1,0 +1,13 @@
+Lehrer datei ist Verschlüsselt
+Zum Entschlüsseln muss UVerschluesselung eingebunden werden
+
+Name
+Loginname.leh <- Dateinname
+
+Aufbau
+Passwort
+Name
+Vorname
+Geburtsdatum
+Amtsbezeichnung
+Adminstatus ( t falls er ein Admin ist, f falls er kein Admin ist)

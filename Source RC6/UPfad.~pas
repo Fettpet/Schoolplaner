@@ -1,0 +1,11 @@
+unit UPfad;
+
+interface
+const
+  Ordner_data = '\\soel7\d$\Freigabe-Lehrer\Urlaubsdaten\Data';
+
+implementation
+
+
+end.
+ 

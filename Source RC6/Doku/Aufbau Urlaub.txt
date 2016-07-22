@@ -1,0 +1,34 @@
+Im Ordner Urlaub befinden sich unterodner, welche nach dem Jahr benannt sind. In diesen Unterordnern befinden sich die Urlaubsdaten.
+
+Dateiname:
+kuerzel.urlaub
+
+Aufbau
+Jede Zeile entspricht einer Woche. Das Trennzeichen ist ein Zeilenumbruch. D.h man ließt eine Woche mit Readln aus
+
+Wochenlage
+Winterferien Woche 1
+Winterferien Woche 2
+OSterferien Woche 1
+OSterferien Woche 2
+Sommerferien Woche 1
+Sommerferien Woche 2
+Sommerferien Woche 3
+Sommerferien Woche 4
+Sommerferien Woche 5
+Sommerferien Woche 6
+Herbstferien Woche 1
+Herbstferien Woche 2
+Winterferien Woche 1
+Winterferien Woche 2
+Winterferien Woche 3 
+Zusatz (ist länger als 5 Zeichen)
+
+Bedeutung der Zeichen
+Leerzeichen -> Lehrer macht nichts
+F -> Fortbildung
+L -> Lehrplan
+P -> Prüfungskommision
+S -> Stundenplanbau
+U -> Urlaub
+E -> Einsatz

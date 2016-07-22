@@ -1,0 +1,478 @@
+unit U_Formular;
+
+interface
+
+uses
+  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
+  Dialogs, StdCtrls, ComObj, UPfad;
+
+type
+  TFormular = class
+  private
+    procedure ausfuellen;
+    procedure zusatz;
+    function entschluesselung(s: string): string;
+    function datum_teilen(datum: String): String;
+  public
+    constructor create(id, jahreszahl: String);
+    procedure set_erholung(tage: integer);
+    procedure set_zusatz(tage: integer);
+    procedure set_gesamt(tage: integer);
+    procedure set_beantragt(tage: integer);
+    procedure set_abgabe(datum: String);
+    procedure set_einreichung(datum: String);
+    procedure speichern();
+end;
+
+var
+  excel, wbk, ws: Variant;
+  kuerzel, jahr, temp: String;
+  ColumnRange: OleVariant;
+  lehrer_txt, Ferien, Urlaub: TextFile;
+  zusatz_laufnummer, anzahl_zusatz, bruecken_pos, pfingsten_pos, bruecken_spalte, pfingsten_spalte: integer;
+  //--- Diverse wichtige Konstanten, welche die Standartwerte definieren -------
+  Const xlVAlignCenter = -4108;
+  Const xlVAlignTop = -4160;
+  Const xlHAlignCenter = -4108;
+  Const xlThin = 2;
+  Const xlEdgeBottom = 9;
+  Const xlDouble = -4119;
+  Const xlThick = 4;
+  Const xl3DColumn = -4100;
+  Const xlColumns = 2;
+  Const xlLocationAsObject = 2;
+  Const xlLeft = -4131;
+  Const xlRight = -4152;
+  Const xlTop = -4160;
+  const xlCellTypeLastCell = $0000000B;
+  Const xlLandscape = 2;
+  Const xlPaperA4 = 9;
+
+implementation
+
+constructor TFormular.create(id, jahreszahl: String);
+begin
+  kuerzel := id;
+  jahr := jahreszahl;
+  zusatz_laufnummer := 0;
+  anzahl_zusatz := 0;
+  pfingsten_spalte := 0;
+  pfingsten_pos := 0;
+  bruecken_spalte := 0;
+  bruecken_pos := 0;
+  try
+    excel := CreateOleObject('Excel.Application');
+    excel.Visible := false;
+  except
+    ShowMessage('Excel konnte nicht gestartet werden. Bitte stellen Sie sicher, dass es ordnungsgemäß installiert wurde.');
+    Exit;                                           
+  end;
+  wbk := excel.Workbooks.Open(GetCurrentDir + Ordner_data + '\Vorlagen\Antrag.xls');
+  ws := wbk.ActiveSheet;
+  ws.name := kuerzel;
+  ausfuellen;
+end;
+
+function TFormular.entschluesselung(s: string): string;
+var i:integer;
+begin
+  for i:=1 to length(s) do begin
+    s[i]:=Chr(Ord(s[i]) - i);
+  end;
+  result := s;
+end;
+
+procedure TFormular.ausfuellen();
+var wochentag, spalten_pos, zeilen_pos, i, counter: integer;
+    utemp: String;
+begin
+  ws.Cells[1,1] := kuerzel;
+  ws.Cells[2,5] := jahr;
+  counter := 0;
+  AssignFile(lehrer_txt, Ordner_data + '\Lehrer\' + kuerzel + '.leh');
+  Reset(lehrer_txt);
+  readln(lehrer_txt, temp);
+  readln(lehrer_txt, temp);
+  ws.Cells[2,12] := entschluesselung(temp);
+  readln(lehrer_txt, temp);
+  ws.Cells[3,12] := entschluesselung(temp);
+  readln(lehrer_txt, temp);
+  readln(lehrer_txt, temp);
+  ws.Cells[5,12] := entschluesselung(temp);
+  CloseFile(lehrer_txt);
+  AssignFile(Ferien, Ordner_data + '\Schuljahre\' + jahr + '.jah');
+  Reset(Ferien);
+  AssignFile(Urlaub,Ordner_data + '\Urlaub\' + jahr + '\' + kuerzel + '.urlaub');
+  Reset(Urlaub);
+  spalten_pos := 0;
+  repeat
+    i := 1;
+    readln(Ferien, temp);
+    if temp = 'Zusatz' then
+      zusatz
+    else
+      if temp = 'Winterferien'
+      then  begin
+              zeilen_pos := 11;
+              readln(Ferien, temp);
+              readln(Urlaub, utemp);
+              repeat
+                wochentag := DayOfWeek(StrToDate(temp));
+                case wochentag of
+                  2: spalten_pos := 0;
+                  3: spalten_pos := 2;
+                  4: spalten_pos := 4;
+                  5: spalten_pos := 6;
+                  6: spalten_pos := 8;
+                end;
+                case spalten_pos of
+                  0: i := 1;
+                  2: i := 2;
+                  4: i := 3;
+                  6: i := 4;
+                  8: i := 5;
+                end;
+                ws.Cells[zeilen_pos, 4 + spalten_pos] := temp;
+                ws.Cells[zeilen_pos, 5 + spalten_pos] := utemp[i];
+                if utemp[i] = 'E' then ws.Cells[zeilen_pos, 5 + spalten_pos].Interior.colorindex := 6;
+                if utemp[i] = 'U' then counter := counter + 1;
+                if spalten_pos = 8
+                then  begin
+                        ws.Cells[zeilen_pos, 15] := counter;
+                        zeilen_pos := zeilen_pos + 1;
+                        counter := 0;
+                        readln(Urlaub, utemp);
+                      end;
+                if (zeilen_pos = 44) and (spalten_pos <> 8)
+                then  begin
+                        ws.Cells[zeilen_pos, 15] := counter;
+                        counter := 0;
+                      end;
+                readln(Ferien, temp);
+              until (temp = 'Zusatz') or (temp = 'Osterferien');
+            end;
+    if temp = 'Zusatz' then
+      zusatz
+    else
+      if temp = 'Osterferien'
+      then  begin
+              zeilen_pos := 17;
+              readln(Ferien, temp);
+              repeat
+                wochentag := DayOfWeek(StrToDate(temp));
+                case wochentag of
+                  2: spalten_pos := 0;
+                  3: spalten_pos := 2;
+                  4: spalten_pos := 4;
+                  5: spalten_pos := 6;
+                  6: spalten_pos := 8;
+                end;
+                case spalten_pos of
+                  0: i := 1;
+                  2: i := 2;
+                  4: i := 3;
+                  6: i := 4;
+                  8: i := 5;
+                end;
+                ws.Cells[zeilen_pos, 4 + spalten_pos] := temp;
+                ws.Cells[zeilen_pos, 5 + spalten_pos] := utemp[i];
+                if utemp[i] = 'E' then ws.Cells[zeilen_pos, 5 + spalten_pos].Interior.colorindex := 6;
+                if utemp[i] = 'U' then counter := counter + 1;
+                if spalten_pos = 8
+                then  begin
+                        ws.Cells[zeilen_pos, 15] := counter;
+                        zeilen_pos := zeilen_pos + 1;
+                        counter := 0;
+                        readln(Urlaub, utemp);
+                      end;
+                if (zeilen_pos = 44) and (spalten_pos <> 8)
+                then  begin
+                        ws.Cells[zeilen_pos, 15] := counter;
+                        counter := 0;
+                      end;
+                readln(Ferien, temp);
+              until (temp = 'Zusatz') or (temp = 'Sommerferien');
+            end;
+    if temp = 'Zusatz' then
+      zusatz
+    else
+      if temp = 'Sommerferien'
+      then  begin
+              zeilen_pos := 27;
+              readln(Ferien, temp);
+              if utemp = '#####' then readln(Urlaub, utemp);
+              repeat
+                wochentag := DayOfWeek(StrToDate(temp));
+                case wochentag of
+                  2: spalten_pos := 0;
+                  3: spalten_pos := 2;
+                  4: spalten_pos := 4;
+                  5: spalten_pos := 6;
+                  6: spalten_pos := 8;
+                end;
+                case spalten_pos of
+                  0: i := 1;
+                  2: i := 2;
+                  4: i := 3;
+                  6: i := 4;
+                  8: i := 5;
+                end;
+                ws.Cells[zeilen_pos, 4 + spalten_pos] := temp;
+                ws.Cells[zeilen_pos, 5 + spalten_pos] := utemp[i];
+                if utemp[i] = 'E' then ws.Cells[zeilen_pos, 5 + spalten_pos].Interior.colorindex := 6;
+                if utemp[i] = 'U' then counter := counter + 1;
+                if spalten_pos = 8
+                then  begin
+                        ws.Cells[zeilen_pos, 15] := counter;
+                        zeilen_pos := zeilen_pos + 1;
+                        counter := 0;
+                        readln(Urlaub, utemp);
+                      end;
+                if (zeilen_pos = 44) and (spalten_pos <> 8)
+                then  begin
+                        ws.Cells[zeilen_pos, 15] := counter;
+                        counter := 0;
+                      end;
+                readln(Ferien, temp);
+              until (temp = 'Zusatz') or (temp = 'Herbstferien');
+            end;
+    if temp = 'Zusatz' then
+      zusatz
+    else
+      if temp = 'Herbstferien'
+      then  begin
+              zeilen_pos := 36;
+              readln(Ferien, temp);
+              repeat
+                wochentag := DayOfWeek(StrToDate(temp));
+                case wochentag of
+                  2: spalten_pos := 0;
+                  3: spalten_pos := 2;
+                  4: spalten_pos := 4;
+                  5: spalten_pos := 6;
+                  6: spalten_pos := 8;
+                end;
+                case spalten_pos of
+                  0: i := 1;
+                  2: i := 2;
+                  4: i := 3;
+                  6: i := 4;
+                  8: i := 5;
+                end;
+                ws.Cells[zeilen_pos, 4 + spalten_pos] := temp;
+                ws.Cells[zeilen_pos, 5 + spalten_pos] := utemp[i];
+                if utemp[i] = 'E' then ws.Cells[zeilen_pos, 5 + spalten_pos].Interior.colorindex := 6;
+                if utemp[i] = 'U' then counter := counter + 1;
+                if spalten_pos = 8
+                then  begin
+                        ws.Cells[zeilen_pos, 15] := counter;
+                        zeilen_pos := zeilen_pos + 1;
+                        counter := 0;
+                        readln(Urlaub, utemp);
+                      end;
+                if (zeilen_pos = 44) and (spalten_pos <> 8)
+                then  begin
+                        ws.Cells[zeilen_pos, 15] := counter;
+                        counter := 0;
+                      end;
+                readln(Ferien, temp);
+              until (temp = 'Zusatz') or (temp = 'Weihnachtsferien');
+            end;
+    if temp = 'Zusatz' then
+      zusatz
+    else
+      if temp = 'Weihnachtsferien'
+      then  begin
+              zeilen_pos := 42;
+              readln(Ferien, temp);
+              repeat
+                wochentag := DayOfWeek(StrToDate(temp));
+                case wochentag of
+                  2: spalten_pos := 0;
+                  3: spalten_pos := 2;
+                  4: spalten_pos := 4;
+                  5: spalten_pos := 6;
+                  6: spalten_pos := 8;
+                end;
+                case spalten_pos of
+                  0: i := 1;
+                  2: i := 2;
+                  4: i := 3;
+                  6: i := 4;
+                  8: i := 5;
+                end;
+                ws.Cells[zeilen_pos, 4 + spalten_pos] := temp;
+                ws.Cells[zeilen_pos, 5 + spalten_pos] := utemp[i];
+                if utemp[i] = 'E' then ws.Cells[zeilen_pos, 5 + spalten_pos].Interior.colorindex := 6;
+                if utemp[i] = 'U' then counter := counter + 1;
+                if spalten_pos = 8
+                then  begin
+                        ws.Cells[zeilen_pos, 15] := counter;
+                        zeilen_pos := zeilen_pos + 1;
+                        counter := 0;
+                        readln(Urlaub, utemp);
+                      end;
+                if (zeilen_pos = 44) and (spalten_pos <> 8)
+                then  begin
+                        ws.Cells[zeilen_pos, 15] := counter;
+                      end;
+                readln(Ferien, temp);
+              until (temp = 'Zusatz') or (eof(Ferien) = true);
+              if eof(Ferien) = true
+              then  begin
+                      wochentag := DayOfWeek(StrToDate(temp));
+                      case wochentag of
+                        2: spalten_pos := 0;
+                        3: spalten_pos := 2;
+                        4: spalten_pos := 4;
+                        5: spalten_pos := 6;
+                        6: spalten_pos := 8;
+                      end;
+                      case spalten_pos of
+                        0: i := 1;
+                        2: i := 2;
+                        4: i := 3;
+                        6: i := 4;
+                        8: i := 5;
+                      end;
+                      ws.Cells[zeilen_pos, 4 + spalten_pos] := temp;
+                      ws.Cells[zeilen_pos, 5 + spalten_pos] := utemp[i];
+                      if utemp[i] = 'E' then ws.Cells[zeilen_pos, 5 + spalten_pos].Interior.colorindex := 6;
+                      if utemp[i] = 'U' then counter := counter + 1;
+                      ws.Cells[zeilen_pos, 15] := counter;
+                    end;
+            end;
+      if (temp <> 'Weihnachtsferien') and (temp <> 'Zusatz') and (temp <> 'Herbstferien') and (temp <> 'Sommerferien') and (temp <> 'Osterferien') and (temp <> 'Winterferien') and (eof(Urlaub) = false) and (eof(Ferien) = true)
+      then  begin
+              counter := 0;
+              readln(Urlaub, utemp);
+              if pfingsten_pos <> 0
+              then  begin
+                      ws.Cells[23, pfingsten_spalte + 1] := utemp[pfingsten_pos];
+                      if utemp[pfingsten_pos] = 'U' then counter := counter + 1;
+                      if utemp[pfingsten_pos] = 'E' then ws.Cells[23, pfingsten_spalte + 1].Interior.colorindex := 6;
+                    end;
+              if bruecken_pos <> 0
+              then  begin
+                      ws.Cells[23, bruecken_spalte + 1] := utemp[bruecken_pos];
+                      if utemp[pfingsten_pos] = 'U' then counter := counter + 1;
+                      if utemp[bruecken_pos] = 'E' then ws.Cells[23, bruecken_spalte + 1].Interior.colorindex := 6;
+                    end;
+              ws.Cells[23, 15] := counter;
+            end;                                                                        
+  until eof(Ferien);
+  CloseFile(Ferien);
+  //--- Abschluss --------------------------------------------------------------
+  CloseFile(Urlaub);
+end;
+
+procedure TFormular.zusatz();
+var i, anzahl, wochentag, spalten_pos: integer;
+begin
+  readln(Ferien, temp);
+  anzahl := strtoint(temp) - 1;
+  spalten_pos := 0;
+  for i := 0 to anzahl do
+  begin
+    readln(Ferien, temp);
+    //--- Ausnameabfrage für spezielle Tage ------------------------------------
+    if temp = 'Pfingsten'
+    then  begin
+            anzahl_zusatz := anzahl_zusatz + 1;
+            readln(Ferien, temp);
+            wochentag := DayOfWeek(StrToDate(temp));
+            case wochentag of
+              2: spalten_pos := 0;
+              3: spalten_pos := 2;
+              4: spalten_pos := 4;
+              5: spalten_pos := 6;
+              6: spalten_pos := 8;
+            end;
+            ws.Cells[23, 4 + spalten_pos] := 'Himmelfahrt ' + temp;
+            pfingsten_spalte := 4 + spalten_pos;
+            pfingsten_pos := anzahl_zusatz;
+          end
+    else if temp = 'Brückentag' then begin
+            anzahl_zusatz := anzahl_zusatz + 1;
+            readln(Ferien, temp);
+            wochentag := DayOfWeek(StrToDate(temp));
+            case wochentag of
+              2: spalten_pos := 0;
+              3: spalten_pos := 2;
+              4: spalten_pos := 4;
+              5: spalten_pos := 6;
+              6: spalten_pos := 8;
+            end;
+            ws.Cells[23, 4 + spalten_pos] := 'Brückentag ' + temp;
+            bruecken_spalte := 4 + spalten_pos;
+            bruecken_pos := anzahl_zusatz;
+    end
+    //--- Reguläre Zusätze am Formularende -------------------------------------
+    else  begin
+            anzahl_zusatz := anzahl_zusatz + 1;
+            zusatz_laufnummer := zusatz_laufnummer + 1;
+            ws.Cells[47 + zusatz_laufnummer,13] := temp;
+            readln(Ferien, temp);
+            ws.Cells[47 + zusatz_laufnummer,1] := datum_teilen(temp);
+            ws.Cells[47 + zusatz_laufnummer,4] := datum_teilen(temp);
+            ws.Cells[47 + zusatz_laufnummer,5] := temp;
+          end;
+  end;
+end;
+
+function TFormular.datum_teilen(datum: String): String;
+var teilstring: String;
+    x: integer;
+begin
+  //--- Spaltet das Datum der Reihe nach in Tag, Monat und Jahr ----------------
+  x := 1;
+  teilstring := '';
+  while datum[x] <> '.' do
+  begin
+    teilstring := teilstring + datum[x];
+    x := x + 1;
+    delete(temp,1,1);
+  end;
+  delete(temp,1,1);
+  result := teilstring;
+end;
+
+procedure TFormular.set_erholung(tage: integer);
+begin
+  ws.Cells[3,5] := inttostr(tage);
+end;
+
+procedure TFormular.set_zusatz(tage: integer);
+begin
+  ws.Cells[4,5] := inttostr(tage);
+end;
+
+procedure TFormular.set_gesamt(tage: integer);
+begin
+  ws.Cells[5,5] := inttostr(tage);
+end;
+
+procedure TFormular.set_beantragt(tage: integer);
+begin
+  ws.Cells[6,5] := inttostr(tage);
+end;
+
+procedure TFormular.set_abgabe(datum: String);
+begin
+  ws.Cells[7,5] := datum;
+end;
+
+procedure TFormular.set_einreichung(datum: String);
+begin
+  ws.Cells[7,13] := datum;
+end;
+
+procedure TFormular.speichern();
+begin
+  if fileexists(GetCurrentDir + Ordner_data + '\Excel-Files\Antrag_' + kuerzel + '_' + jahr + '.xls') = true
+    then deletefile(GetCurrentDir + Ordner_data + '\Excel-Files\Antrag_' + kuerzel + '_' + jahr + '.xls');
+  wbk.SaveAs(GetCurrentDir + Ordner_data + '\Excel-Files\Antrag_' + kuerzel + '_' + jahr + '.xls');
+  excel.Visible := true;
+end;
+
+end.

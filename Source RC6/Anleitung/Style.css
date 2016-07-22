@@ -1,0 +1,9 @@
+body{font-family: Arial Rounded MT Bold; font-size: large; font-weight: bold; color: #000000; background-color: #FFCCCC;}
+h3 {color: #999900; font-size: x-large}
+h1 {color: #999900;}
+
+p{font-family: Arial Rounded MT Bold;color: #AC0D28;font-size: x-large;}
+A:link {font-family: Arial Rounded MT Bold;font-size: medium;color: #008040;}
+a:visited {font-family: Arial Rounded MT Bold;font-size: medium;color: #008040;}
+a:hover { text-transform: uppercase;}
+a:active { border: 0.5pc;}

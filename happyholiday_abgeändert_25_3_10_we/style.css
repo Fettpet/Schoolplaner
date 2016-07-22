@@ -1,0 +1,6 @@
+body { margin: 0.5cm; background-color: #EFEFFA;}
+h2 { font-family: Arial, Helvetica, sans-serif; font-size: 16pt;}
+p { font-family: Monotype Corsiva, fantasy; font-size: 16pt; margin-left: 15px;}
+A:link {font-family: Arial, Helvetica, sans-serif; font-size: 10pt; color:#000000;}
+A:active {font-family: Arial, Helvetica, sans-serif; font-size: 10pt; color:#FF007B;}
+A:visited {font-family: Arial, Helvetica, sans-serif; font-size: 10pt; color:#A50021;}
